@@ -46,7 +46,7 @@ def _ensure_headers():
         ).execute()
 
 
-def get_all_users() -> list[dict]:
+def get_all_users() -> list:
     rows = _get_all_rows()
     if len(rows) <= 1:
         return []
@@ -62,7 +62,7 @@ def get_all_users() -> list[dict]:
     return users
 
 
-def get_user(chat_id: str) -> dict | None:
+def get_user(chat_id: str):
     users = get_all_users()
     for u in users:
         if u["chat_id"] == chat_id:
@@ -70,7 +70,7 @@ def get_user(chat_id: str) -> dict | None:
     return None
 
 
-def _find_row_index(chat_id: str) -> int | None:
+def _find_row_index(chat_id: str):
     """Returns 1-based row index in sheet, or None if not found."""
     rows = _get_all_rows()
     for i, row in enumerate(rows):
@@ -86,7 +86,6 @@ def register_user(chat_id: str, student_id: str, phone: str):
     svc = _get_service()
 
     if existing_row:
-        # Update existing row
         svc.values().update(
             spreadsheetId=SPREADSHEET_ID,
             range=f"{SHEET_NAME}!A{existing_row}:E{existing_row}",
@@ -94,7 +93,6 @@ def register_user(chat_id: str, student_id: str, phone: str):
             body={"values": [[chat_id, student_id, phone, "TRUE", now]]}
         ).execute()
     else:
-        # Append new row
         svc.values().append(
             spreadsheetId=SPREADSHEET_ID,
             range=f"{SHEET_NAME}!A:E",

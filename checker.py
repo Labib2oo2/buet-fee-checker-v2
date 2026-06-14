@@ -3,9 +3,10 @@
 BUET Fee Due Checker — Multi-User Version
 Reads all registered users from Google Sheets,
 checks their fees, and sends Telegram alerts.
+Uses raw HTTP requests to Telegram API (no python-telegram-bot dependency).
 """
 
-import asyncio, os, time, json, logging
+import os, time, json, logging, requests
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -13,10 +14,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
-from telegram import Bot
 from sheets import get_all_users
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+API_URL   = f"https://api.telegram.org/bot{BOT_TOKEN}"
 URL       = "https://billpay.sonalibank.com.bd/BUET/Fee"
 
 FEE_TYPES = [
@@ -34,19 +35,22 @@ log = logging.getLogger(__name__)
 
 
 # ── Telegram ───────────────────────────────────────────────────────────────────
-async def _send(chat_id: str, text: str):
-    bot = Bot(token=BOT_TOKEN)
-    await bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
-
 def notify(chat_id: str, text: str):
     if not BOT_TOKEN:
         log.warning("BOT_TOKEN not set")
         return
     try:
-        asyncio.run(_send(chat_id, text))
-        log.info(f"  → Notified {chat_id}")
+        resp = requests.post(f"{API_URL}/sendMessage", json={
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML"
+        }, timeout=10)
+        if resp.status_code == 200:
+            log.info(f"  → Notified {chat_id}")
+        else:
+            log.error(f"  → Telegram error for {chat_id}: {resp.text}")
     except Exception as e:
-        log.error(f"  → Telegram error for {chat_id}: {e}")
+        log.error(f"  → Telegram send failed for {chat_id}: {e}")
 
 
 # ── Browser ────────────────────────────────────────────────────────────────────
@@ -122,7 +126,7 @@ def check_user(driver, user: dict) -> list:
         elif result["no_bill"]:
             log.info(f"  [{fee_label}] No bill")
         elif result["amount"] and result["amount"] > 0:
-            log.info(f"  [{fee_label}] DUE: {result['amount']} BDT ⚠️")
+            log.info(f"  [{fee_label}] DUE: {result['amount']} BDT")
             dues.append(result)
         else:
             log.info(f"  [{fee_label}] No due")
