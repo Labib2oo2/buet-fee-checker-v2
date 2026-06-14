@@ -1,0 +1,30 @@
+name: Registration Bot
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # every 5 minutes
+  workflow_dispatch:
+
+jobs:
+  check-messages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests google-auth google-api-python-client
+
+      - name: Run registration bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GOOGLE_SHEET_ID:    ${{ secrets.GOOGLE_SHEET_ID }}
+          GOOGLE_CREDS_JSON:  ${{ secrets.GOOGLE_CREDS_JSON }}
+        run: python register_bot.py
