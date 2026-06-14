@@ -20,7 +20,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install selenium webdriver-manager python-telegram-bot==21.3 google-auth google-api-python-client
+        run: pip install selenium webdriver-manager requests google-auth google-api-python-client
 
       - name: Install Chrome
         uses: browser-actions/setup-chrome@v1
