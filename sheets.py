@@ -116,3 +116,74 @@ def set_user_active(chat_id: str, active: bool):
         body={"values": [["TRUE" if active else "FALSE"]]}
     ).execute()
     log.info(f"Set user {chat_id} active={active}")
+
+
+# ── Offset tracking (for registration bot, stored in "meta" tab) ───────────────
+META_SHEET = "meta"
+
+def _ensure_meta_headers():
+    svc = _get_service()
+    try:
+        result = svc.values().get(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"{META_SHEET}!A:B"
+        ).execute()
+        rows = result.get("values", [])
+    except Exception:
+        rows = []
+
+    if not rows:
+        svc.values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"{META_SHEET}!A1",
+            valueInputOption="RAW",
+            body={"values": [["key", "value"], ["telegram_offset", "0"]]}
+        ).execute()
+
+
+def get_offset() -> int:
+    _ensure_meta_headers()
+    svc = _get_service()
+    result = svc.values().get(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"{META_SHEET}!A:B"
+    ).execute()
+    rows = result.get("values", [])
+    for row in rows:
+        if len(row) >= 2 and row[0] == "telegram_offset":
+            try:
+                return int(row[1])
+            except ValueError:
+                return 0
+    return 0
+
+
+def set_offset(offset: int):
+    _ensure_meta_headers()
+    svc = _get_service()
+    result = svc.values().get(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"{META_SHEET}!A:B"
+    ).execute()
+    rows = result.get("values", [])
+    row_idx = None
+    for i, row in enumerate(rows):
+        if len(row) >= 1 and row[0] == "telegram_offset":
+            row_idx = i + 1
+            break
+
+    if row_idx:
+        svc.values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"{META_SHEET}!B{row_idx}",
+            valueInputOption="RAW",
+            body={"values": [[str(offset)]]}
+        ).execute()
+    else:
+        svc.values().append(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"{META_SHEET}!A:B",
+            valueInputOption="RAW",
+            insertDataOption="INSERT_ROWS",
+            body={"values": [["telegram_offset", str(offset)]]}
+        ).execute()
